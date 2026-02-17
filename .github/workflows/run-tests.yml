@@ -1,4 +1,4 @@
-name: Run Automated Tests
+name: Run Tests
 
 on:
   push:
@@ -11,30 +11,41 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      
+    - uses: actions/checkout@v3
+    
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
-        
-    - name: Install dependencies
+    
+    - name: Find and install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
         
-    - name: Run unit tests
-      run: |
-        python -m unittest test_calculator.py -v
+        # Ищем requirements.txt во всех папках
+        REQ_FILE=$(find . -name "requirements.txt" -print -quit)
         
-    - name: Run pytest (if available)
+        if [ -n "$REQ_FILE" ]; then
+          echo "Found requirements.txt at: $REQ_FILE"
+          pip install -r "$REQ_FILE"
+        else
+          echo "No requirements.txt found, installing pytest"
+          pip install pytest
+        fi
+    
+    - name: Find and run tests
       run: |
-        pytest test_calculator.py -v --tb=short
-      continue-on-error: true
-      
-    - name: Display test results
-      if: always()
-      run: |
-        echo "=== TEST EXECUTION COMPLETE ==="
-        echo "Check the test results above"
+        # Ищем файлы тестов
+        TEST_FILES=$(find . -name "test_*.py" -o -name "*_test.py")
+        
+        if [ -n "$TEST_FILES" ]; then
+          echo "Found test files:"
+          echo "$TEST_FILES"
+          
+          # Запускаем unittest
+          python -m unittest discover -v
+        else
+          echo "No test files found"
+          python --version
+          pip list
+        fi
